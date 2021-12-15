@@ -1,0 +1,64 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: true
+  vars:
+    VolumeGroup: ocp
+    directories:
+      - rhvh-data
+      - images
+    devices:
+      - '/dev/sdb'
+  tasks:
+  - stat:
+      path: /dev/ocp/local
+    register: lv
+  - block:
+    - name: "Create partition on device(s)"
+      parted:
+        device: "{{ item }}"
+        number: 1
+        state: present
+      with_items:
+        - "{{ devices }}"
+    - name: "Create volume group"
+      lvg:
+        vg: "{{ VolumeGroup }}"
+        pvs: "{{ item }}1"
+      with_items:
+        - "{{ devices }}"
+    - name: "Create a logical volume the size of all remaining space in the volume group"
+      lvol:
+        vg: "{{ VolumeGroup }}"
+        lv: local
+        size: 100%FREE
+    - name: "Format new logical volume"
+      filesystem:
+        fstype: xfs
+        dev: "/dev/{{ VolumeGroup }}/local"
+    - name: "Mount logical volume"
+      mount:
+        fstype: xfs
+        src: "/dev/mapper/ocp-local"
+        path: /opt/data
+        state: mounted
+        opts: defaults,norelatime,logbufs=8,logbsize=256k,largeio,inode64,swalloc,allocsize=2M
+        backup: true
+    - name: "Create RHV directories"
+      file:
+        path: "/opt/data/{{ item }}"
+        state: directory
+        owner: 36
+        group: 36
+        mode: '0755'
+      with_items:
+        - "{{ directories }}"
+    - name: "Set proper permissions"
+      file:
+        path: /opt/data
+        state: directory
+        recurse: true
+        owner: 36
+        group: 36
+        mode: '0755'
+    when: lv.stat.exists is not defined
