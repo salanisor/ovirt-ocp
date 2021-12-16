@@ -1,6 +1,5 @@
 ---
-- hosts: 127.0.0.1
-  connection: local
+- hosts: all
   gather_facts: true
   vars:
     VolumeGroup: ocp
@@ -8,10 +7,10 @@
       - rhvh-data
       - images
     devices:
-      - '/dev/sdb'
+      - '/dev/nvme2n1'
   tasks:
   - stat:
-      path: /dev/ocp/local
+      path: /opt/data
     register: lv
   - block:
     - name: "Create partition on device(s)"
@@ -24,7 +23,7 @@
     - name: "Create volume group"
       lvg:
         vg: "{{ VolumeGroup }}"
-        pvs: "{{ item }}1"
+        pvs: "{{ item }}p1"
       with_items:
         - "{{ devices }}"
     - name: "Create a logical volume the size of all remaining space in the volume group"
@@ -61,4 +60,4 @@
         owner: 36
         group: 36
         mode: '0755'
-    when: lv.stat.exists is not defined
+    when: lv.stat.isdir is not defined

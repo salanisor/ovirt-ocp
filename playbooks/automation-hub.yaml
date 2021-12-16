@@ -1,0 +1,29 @@
+---
+# Documentation:
+# Client:
+# https://docs.ansible.com/ansible/latest/galaxy/user_guide.html#configuring-the-ansible-galaxy-client
+# https://access.redhat.com/documentation/en-us/red_hat_ansible_automation_platform/2.1/html-single/getting_started_with_automation_hub/index
+# Module(s):
+# https://console.redhat.com/ansible/automation-hub/repo/published/redhat/rhv
+# How-to:
+# ansible-playbook -vv -i 127.0.0.1, -c local playbooks/automation-hub.yaml --ask-vault-pass
+- hosts: all
+  gather_facts: false
+  vars:
+    collection:
+      - redhat.rhv
+  tasks:
+  - name: "Drop in the proper ansible.cfg file"
+    copy:
+      src: ../files/ansible.cfg
+      dest: "/etc/ansible/ansible.cfg"
+      backup: yes
+      mode: '0444'
+      owner: root
+      group: root
+      decrypt: yes
+  - name: "Install ansible collections"
+    command:
+      cmd: "ansible-galaxy collection install {{ item }}"
+    with_items:
+      - "{{ collection }}"
