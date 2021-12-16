@@ -6,7 +6,7 @@
 # Module(s):
 # https://console.redhat.com/ansible/automation-hub/repo/published/redhat/rhv
 # How-to:
-# ansible-playbook -vv -i 127.0.0.1, -c local playbooks/automation-hub.yaml --ask-vault-pass
+# ansible-playbook -vv -i 127.0.0.1, -c local playbooks/pb_automation-hub.yaml --ask-vault-pass
 - hosts: all
   gather_facts: false
   vars:
@@ -27,3 +27,15 @@
       cmd: "ansible-galaxy collection install {{ item }}"
     with_items:
       - "{{ collection }}"
+  - name: "Install Python3 pip"
+    dnf:
+      name: python3-pip.noarch,gcc
+      state: latest
+  # Required by redhat.rhv Ansible collection
+  # Not working try instead: pip3 install ovirt-engine-sdk-python
+  #- name: "Install ovirt-engine Pip package"
+  #  pip:
+  #    name: "ovirt-engine-sdk-python"
+  #    version: 4.4.0
+  #    extra_args: --user
+  #    executable: pip3
