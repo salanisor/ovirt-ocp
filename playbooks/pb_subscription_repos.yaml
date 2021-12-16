@@ -1,0 +1,22 @@
+---
+# Ansible playbook for RHEL 8 hosts configuration
+# Docs:
+# https://access.redhat.com/documentation/en-us/red_hat_virtualization/4.4/html-single/administration_guide/index#Updating_all_hosts_in_a_cluster_admin
+# How-to:
+# ansible-playbook -vv -i rhev0.ocp4.keights.org, playbooks/pb_subscription_repos.yaml
+- hosts: all
+  gather_facts: false
+  tasks:
+  - name: "Disable all RHSM repositories"
+    rhsm_repository:
+      name: '*'
+      state: disabled
+  - name: "Enable RHV repositories"
+    rhsm_repository:
+      name: 
+        - rhel-8-for-x86_64-baseos-rpms
+        - rhel-8-for-x86_64-appstream-rpms
+        - rhv-4-mgmt-agent-for-rhel-8-x86_64-rpms
+        - advanced-virt-for-rhel-8-x86_64-rpms
+        - fast-datapath-for-rhel-8-x86_64-rpms
+      state: enabled
