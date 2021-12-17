@@ -1,26 +1,18 @@
-#### How-to git repo to manage RHV and deploy OpenShift 4.x
+# OpenShift Install
 
-Once you obtain your Ansible hub token following the [directions](https://access.redhat.com/documentation/en-us/red_hat_ansible_automation_platform/2.1/html-single/getting_started_with_automation_hub/index) proceed to write out your ansible configuration file placed under the files directory for this example and encrypt it via ansible vault.
+The OpenShift installer `openshift-install` makes it easy to get a cluster
+running on the public cloud or your local infrastructure.
 
+To learn more about installing OpenShift, visit [docs.openshift.com](https://docs.openshift.com)
+and select the version of OpenShift you are using.
 
-`ansible.cfg`
+## Installing the tools
 
-    [galaxy]
-    server_list = automation_hub, release_galaxy
-    
-    [galaxy_server.automation_hub]
-    url=https://cloud.redhat.com/api/automation-hub/
-    auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
-    
-    token=rtvybunimdwpeojfk203kf20kf2pkfpkfepek2p4o6yuiokplfwe0ifu9chygftuvyibunimolmknjbvfdsrftyuiopo9iuytrewsxcvgbhjklmnbgfdsasdrtyuioplkjhgfdsxcvbhjklmnhbgfdszxcvbhjklmnbvcxzxlkjhgfdcfvgbhnjklpoiuytrdesdfghjkllkjhgfdsdfghjkl;p[poiuytrewasdfghjklmnbvcxsdfghjklopoiuytrewqasdfghjklmnbvcxsdfghjkloiuytresdfghjkmnbvcdxszxcvgbhjkmnbvcdxszxcvghjkmnbvcxzxcvbhnjmvcxziuytrewertyuioijhgfdsadfghjklmnbvcxzcfghjklkjhgfrewssertyuiopoiuytredsdfghjklkjhgfdsxcvgbhjklmnbv
-    
-    [galaxy_server.release_galaxy]
-    url=https://galaxy.ansible.com/
+After extracting this archive, you can move the `openshift-install` binary
+to a location on your PATH such as `/usr/local/bin`, or keep it in a temporary
+directory and reference it via `./openshift-install`.
 
-To encrypt your `ansible.cfg` using ansible-vault run and provide the password you'll then use to decrypt at playbook runtime:
+## License
 
-    ansible-vault encrypt files/ansible.cfg --ask-vault-pass
-    
-To run your playbook and decrypt your protected file run an provide the previously provided password.
-
-    ansible-playbook -vv -i 127.0.0.1, -c local playbooks/automation-hub.yaml --ask-vault-pass
+OpenShift is licensed under the Apache Public License 2.0. The source code for this
+program is [located on github](https://github.com/openshift/installer).

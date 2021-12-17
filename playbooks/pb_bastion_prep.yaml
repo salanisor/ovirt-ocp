@@ -28,3 +28,8 @@
       mode: '0555'
   - command:
       cmd: helpernodectl completion bash
+  - name: "Enable firewalld required by helpernodectl"
+    systemd:
+      name: firewalld
+      state: started
+      enabled: yes
