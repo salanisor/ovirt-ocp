@@ -1,0 +1,30 @@
+---
+# Ansible playbook for RHEL 8 bastion host configuration
+# How-to:
+# Pior to executing playbook run: subscription-manager repos --enable=ansible-2.9-for-rhel-8-x86_64-rpms; dnf install ansible -y
+# ansible-playbook -vv -i bastion, playbooks/pb_bastion_prep.yaml
+- hosts: all
+  gather_facts: false
+  tasks:
+  - name: "Disable all RHSM repositories"
+    rhsm_repository:
+      name: '*'
+      state: disabled
+  - name: "Enable required repositories"
+    rhsm_repository:
+      name: 
+        - rhel-8-for-x86_64-baseos-rpms
+        - rhel-8-for-x86_64-appstream-rpms
+        - ansible-2.9-for-rhel-8-x86_64-rpms
+      state: enabled
+  - name: "Install required package"
+    dnf:
+      name: vim,git,wget,podman,firewalld.noarch
+      state: latest
+  - name: "Download binary file"
+    get_url:
+      url: https://github.com/RedHatOfficial/ocp4-helpernode/releases/download/v2beta1/helpernodectl
+      dest: /usr/local/bin/helpernodectl
+      mode: '0555'
+  - command:
+      cmd: helpernodectl completion bash
