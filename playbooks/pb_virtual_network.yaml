@@ -1,6 +1,6 @@
 ---
 # How-to:
-# ansible-playbook -vv playbooks/pb_host_info.yaml --ask-vault-pass -i 127.0.0.1, -c local
+# ansible-playbook -vv playbooks/pb_virtual_network.yaml --ask-vault-pass -i 127.0.0.1, -c local
 - hosts: all
   gather_facts: false
   tasks:
@@ -17,17 +17,20 @@
           password: "{{ ovirt_password }}"
       # Previous task generated I(ovirt_auth) fact, which you can later use
       # in different modules as follows:
-      # Gather information about host and belongs to data center Default
-      - redhat.rhv.ovirt_host_info:
-          pattern: name=rhev0 and datacenter=rhev0-local
+      # Create network
+      - redhat.rhv.ovirt_network:
+          data_center: rhev0-Local
+          name: ocp4
+          vm_network: true
+          state: present
+          wait: yes
+          external_provider: ovirt-provider-ovn
+          clusters: name=rhev0-Local required=yes
           auth:
             url: https://rhel88.ocp4.keights.org/ovirt-engine/api
             token: "{{ ovirt_auth.token }}"
             username: admin@internal
             insecure: yes
-        register: result
-      - ansible.builtin.debug:
-          msg: "{{ result.ovirt_hosts }}"
     always:
       - name: "Always revoke the SSO token"
         redhat.rhv.ovirt_auth:
