@@ -1,0 +1,58 @@
+arch: x86_64
+bootstrap:
+  disk: vda
+  ipaddr: 192.168.7.20
+  macaddr: 52:54:00:60:72:67
+  name: bootstrap
+configfile: /root/.helper.yaml
+controls:
+- disk: vda
+  ipaddr: 192.168.2.10
+  macaddr: 56:6f:b8:e3:00:02
+  name: control0
+- disk: vda
+  ipaddr: 192.168.2.11
+  macaddr: 56:6f:b8:e3:00:03
+  name: control1
+- disk: vda
+  ipaddr: 192.168.2.12
+  macaddr: 56:6f:b8:e3:00:04
+  name: control2
+dhcp:
+  bcast: 192.168.2.255
+  ipid: 192.168.2.0
+  netmask: 255.255.255.0
+  netmaskid: 255.255.255.0
+  poolend: 192.168.2.40
+  poolstart: 192.168.2.30
+  router: 192.168.0.1
+dns:
+  clusterid: ocp4
+  domain: keights.org
+  forwarder1: 8.8.8.8
+  forwarder2: 8.8.4.4
+helper:
+  ipaddr: 192.168.7.77
+  name: helper
+  networkifacename: eth0
+image_prefix: quay.io
+services:
+  dhcp: true
+  dns: true
+  http: false
+  loadbalancer: true
+  pxe: false
+version: v2
+workers:
+- disk: vda
+  ipaddr: 192.168.2.13
+  macaddr: 56:6f:b8:e3:00:05
+  name: worker0
+- disk: vda
+  ipaddr: 192.168.2.14
+  macaddr: 56:6f:b8:e3:00:06
+  name: worker1
+- disk: vda
+  ipaddr: 192.168.2.15
+  macaddr: 56:6f:b8:e3:00:07
+  name: worker2
