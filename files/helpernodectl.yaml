@@ -5,7 +5,7 @@ bootstrap:
   macaddr: 52:54:00:60:72:67
   name: bootstrap
 configfile: /root/.helper.yaml
-controls:
+masters:
 - disk: vda
   ipaddr: 192.168.2.10
   macaddr: 56:6f:b8:e3:00:02
