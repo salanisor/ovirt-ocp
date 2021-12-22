@@ -1,0 +1,8 @@
+network:
+  ethernets:
+    enp1s0:
+      addresses: [{{ansible_default_ipv4.address}}/24]
+      gateway4: 192.168.0.1
+      nameservers:
+        addresses: [8.8.8.8]
+  version: 2

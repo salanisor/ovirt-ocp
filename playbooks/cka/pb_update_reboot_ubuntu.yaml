@@ -1,0 +1,57 @@
+---
+- hosts: cluster
+  gather_facts: true
+  become: yes
+  become_method: sudo
+  tasks:
+  #- name: "set correct dns"
+  #  command:
+  #    cmd: systemd-resolve --interface enp1s0 --set-dns 1.1.1.1 --set-domain keights.org
+  - name: "Set static IPs"
+    template:
+      src: 00-installer-config.yaml.j2
+      dest: /etc/netplan/00-installer-config.yaml
+      owner: root
+      group: root
+      mode: '0644'
+      backup: yes
+  - name: "Set /etc/hosts"
+    blockinfile:
+      dest: /etc/hosts
+      block: |
+        192.168.0.2 control0.keights.org control0
+        192.168.0.13 worker1.keights.org worker1
+        192.168.0.14 worker0.keights.org worker0
+      backup: yes
+  - name: "Remove line"
+    lineinfile:
+      path: /etc/resolv.conf
+      regexp: '^options edns0 trust-ad$'
+      state: absent
+  - name: "update DNS"
+    lineinfile:
+      line: "nameserver 8.8.8.8"
+      path: /etc/resolv.conf
+      backrefs: yes
+      regexp: '^nameserver 127.0.0.53$'
+      backup: yes
+      state: present
+  - name: "Update cache"
+    apt:
+      update_cache: yes
+  - name: Upgrade all packages on servers
+    apt:
+      name: "*"
+      state: latest
+  - name: "check if a reboot is required"
+    shell: "[ -f /var/run/reboot-required ]"
+    failed_when: False
+    register: reboot_required
+    changed_when: reboot_required.rc == 0
+    #notify: reboot
+  #handlers:
+  - name: "reboot"
+    command: shutdown -r now 'Rebooting to complete system upgrade'
+    #args:
+    #  removes: '/var/run/reboot-required'
+    #when: reboot_required.rc == 0
