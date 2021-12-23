@@ -1,0 +1,10 @@
+---
+- hosts: cluster
+  become: true
+  gather_facts: false
+  - name: "Run setup-container"
+    command:
+      cmd: "/usr/local/bin/setup-container.sh"
+  - name: "Run kubetools-ubuntu"
+    command:
+      cmd: "/usr/local/bin/setup-kubetools-ubuntu.sh"
