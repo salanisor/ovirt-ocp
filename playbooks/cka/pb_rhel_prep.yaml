@@ -1,0 +1,140 @@
+---
+- hosts: cluster
+  gather_facts: true
+  become: yes
+  become_method: sudo
+  vars:
+    control: False
+    worker: False
+  tasks:
+  - name: "stat if facts.d exists"
+    stat:
+      path: "/etc/ansible/facts.d"
+    register: factsd
+  - name: "create facts.d if missing"
+    file:
+      path: "/etc/ansible/facts.d"
+      recurse: yes
+      state: directory
+    when: factsd.stat.isdir is undefined
+  - name: "set fact control"
+    blockinfile:
+      path: "/etc/ansible/facts.d/cluster.fact"
+      create: yes
+      owner: root
+      group: root
+      mode: 0600
+      block: |
+        [env]
+        node=control
+    when: "'control' in inventory_hostname"
+  - name: "set fact worker"
+    blockinfile:
+      path: "/etc/ansible/facts.d/cluster.fact"
+      create: yes
+      owner: root
+      group: root
+      mode: 0600
+      block: |
+        [env]
+        node=worker
+    when: "'worker' in inventory_hostname"
+  - name: "Set /etc/hosts"
+    blockinfile:
+      dest: /etc/hosts
+      block: |
+        192.168.0.50 control0.keights.org cka-control0
+        192.168.0.51 worker0.keights.org cka-worker0
+        192.168.0.52 worker1.keights.org cka-worker1
+        192.168.0.53 worker2.keights.org cka-worker2
+      backup: yes
+  - name: "Copy modules file"
+    copy:
+      src: "k8s.conf"
+      dest: "/etc/modules-load.d/k8s.conf"
+      mode: '0644'
+  - name: "Copy sysctl file"
+    copy:
+      src: "{{item}}"
+      dest: "/etc/sysctl.d/{{item}}"
+      mode: '0644'
+    with_items:
+      - 99-kubernetes-cri.conf
+  - name: "Upgrade all packages on servers"
+    dnf:
+      name: "*"
+      state: latest
+  - name: "Enable services FirewallD control"
+    firewalld:
+      permanent: yes
+      immediate: yes
+      service: "{{item}}"
+      state: enabled
+    with_items:
+      - kube-apiserver
+      - etcd-client
+      - etcd-server 
+    when: "'control' == ansible_local.cluster.env.node"
+    #when: ansible_local.cluster.env.node is search("control") 
+  - name: "Enable ports FirewallD"
+    firewalld:
+      permanent: yes
+      immediate: yes
+      port: "{{item}}/tcp"
+      state: enabled
+    with_items:
+      - '10250'
+      - '10251'
+      - '10252'
+      - '30000-32767'
+  - name: "Enable masquerade FirewallD"
+    firewalld:
+      masquerade: yes
+      state: enabled
+      permanent: yes
+      zone: public
+    # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+  - name: "Install k8s components"
+    block:
+    - name: "Download crio's repos"
+      get_url: 
+        url: "{{item}}"
+        dest: "/etc/yum.repos.d/"
+      with_items:
+        - 'https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo'
+        - 'https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:1.23/CentOS_8/devel:kubic:libcontainers:stable:cri-o:1.23.repo'
+    - command: 
+        cmd: "dnf -y install 'dnf-command(copr)'"
+    - name: "Install Google's gpg's"
+      command:
+        cmd: "rpm --import {{item}}"
+      with_items:
+        - 'https://packages.cloud.google.com/yum/doc/yum-key.gpg'
+        - 'https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg'
+    - name: "Install pkgs to run k8s"
+      dnf:
+        name: cri-o,cri-tools,container-selinux.noarch
+        state: latest
+    - name: "Copy over k8s rpms"
+      copy:
+        src: "{{item}}"
+        dest: "/tmp/{{item}}"
+      with_items:
+        - kubeadm-1.23.1-0.x86_64.rpm
+        - kubectl-1.23.1-0.x86_64.rpm
+        - kubelet-1.23.1-0.x86_64.rpm
+        - kubernetes-cni-0.8.7-0.x86_64.rpm
+    - name: "Install k8s rpms"
+      dnf:
+        name: '/tmp/kubernetes-cni-0.8.7-0.x86_64.rpm,/tmp/kubeadm-1.23.1-0.x86_64.rpm,/tmp/kubectl-1.23.1-0.x86_64.rpm,/tmp/kubelet-1.23.1-0.x86_64.rpm'
+        state: present
+    - name: "Enable k8s services"
+      systemd:
+        name: "{{item}}"
+        state: started
+        enabled: yes
+      with_items:
+        - kubelet
+        - crio
+  #- name: "reboot"
+  #  command: shutdown -r now 'Rebooting to complete system upgrade'
