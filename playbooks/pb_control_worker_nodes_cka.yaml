@@ -1,0 +1,86 @@
+---
+# How-to:
+# ansible-playbook -vv playbooks/pb_control_worker_nodes_cka.yaml --ask-vault-pass -i 127.0.0.1, -c local
+- hosts: all
+  gather_facts: false
+  vars:
+    nodes:
+      - name: cka-control0
+        ipaddr: 192.168.0.50
+      - name: cka-worker0
+        ipaddr: 192.168.0.51
+      - name: cka-worker1
+        ipaddr: 192.168.0.52
+      - name: cka-worker2
+        ipaddr: 192.168.0.53
+  tasks:
+  # Create a vault with `ovirt_password` variable which store your
+  # oVirt/RHV user's password, and include that yaml file with variable:
+  - ansible.builtin.include_vars: ../files/ovirt_password.yml
+  - name: "Obtain SSO token with using username/password credentials"
+    redhat.rhv.ovirt_auth:
+      url: https://rhel88.ocp4.keights.org/ovirt-engine/api
+      username: admin@internal
+      insecure: yes
+      state: present
+      password: "{{ ovirt_password }}"
+  # Creates a new server rhel7 Virtual Machine from Blank template
+  # on brq01 cluster with 2GiB memory and 2 vcpu cores/sockets
+  # and attach bootable disk with name rhel7_disk and attach virtio NIC
+  - redhat.rhv.ovirt_vm:
+      auth:
+        url: https://rhel88.ocp4.keights.org/ovirt-engine/api
+        token: "{{ ovirt_auth.token }}"
+        username: admin@internal
+        insecure: yes
+      state: present
+      cd_iso: rhel-8.5-x86_64-dvd.iso
+      cluster: rhev0-Local
+      storage_domain: rhev0-Local
+      name: "{{ item.name }}"
+      memory: 8GiB
+      memory_guaranteed: 8GiB
+      memory_max: 8GiB
+      cpu_cores: 4
+      cpu_sockets: 1
+      wait: yes
+      type: server
+      operating_system: rhel_8x64
+      nics:
+        - name: nic1
+          profile_name: ovirtmgmt
+      cloud_init:
+        dns_servers: '8.8.8.8 8.8.4.4'
+        nic_boot_protocol: static
+        nic_ip_address: "{{ item.ipaddr }}"
+        nic_netmask: 255.255.255.0
+        nic_gateway: 192.168.0.1
+        nic_name: eth0
+        host_name: keights.org
+        user_name: root
+        root_password: <insert_password_here>
+    with_items:
+      - "{{ nodes }}"
+    notify:
+    - "revoke_the_SSO_token"
+    - redhat.rhv.ovirt_disk:
+      auth:
+        url: https://rhel88.ocp4.keights.org/ovirt-engine/api
+        token: "{{ ovirt_auth.token }}"
+        username: admin@internal
+        insecure: yes
+      name: "{{ item.name }}_disk"
+      vm_name: "{{ item.name }}"
+      size: 60GiB
+      format: cow
+      interface: virtio
+      storage_domain: rhev0-Local
+    with_items:
+      - "{{ nodes }}"
+    notify:
+    - "revoke_the_SSO_token"
+  handlers:
+  - name: "revoke_the_SSO_token"
+    redhat.rhv.ovirt_auth:
+      state: absent
+      ovirt_auth: "{{ ovirt_auth }}"
