@@ -43,6 +43,7 @@
       memory_max: 8GiB
       cpu_cores: 4
       cpu_sockets: 1
+      boot_devices: [ cdrom, hd ]
       wait: yes
       type: server
       operating_system: rhel_8x64
@@ -62,8 +63,8 @@
     with_items:
       - "{{ nodes }}"
     notify:
-    - "revoke_the_SSO_token"
-    - redhat.rhv.ovirt_disk:
+      - "revoke_the_SSO_token"
+  - redhat.rhv.ovirt_disk:
       auth:
         url: https://rhel88.ocp4.keights.org/ovirt-engine/api
         token: "{{ ovirt_auth.token }}"
@@ -78,7 +79,7 @@
     with_items:
       - "{{ nodes }}"
     notify:
-    - "revoke_the_SSO_token"
+      - "revoke_the_SSO_token"
   handlers:
   - name: "revoke_the_SSO_token"
     redhat.rhv.ovirt_auth:
