@@ -1,0 +1,119 @@
+---
+# Playbook to configure OVS/OVN switches and routers to be able to setup a private network in RHV and connect externally.
+# Note: this playbook assumes a non-HA network configuration.
+#
+- hosts: all
+  gather_facts: false
+  tasks:
+  - name: "Configure OVS/OVN Networking to deploy OpenShift on RHV"
+    block:
+      - name: "Gather Chassis UUID"
+        command:
+          cmd: ovn-sbctl show
+        register: sb
+      - set_fact:
+          chassis_uuid: "{{ uuid | regex_replace('Chassis ', '') }}"
+          #stdout_lines[0].split('\"',3)[1]": "fdca2fa5-afd8-43d4-b381-dd8f89435718"
+        vars:
+          uuid: "{{ sb.stdout_lines | select('search', 'Chassis \".*\"$') | flatten | regex_replace('\"', '') }}"
+      - name: "Gather OpenShift's switch UUID"
+        command:
+          cmd: ovn-nbctl show
+        register: nb
+      - set_fact:
+          switch_uuid: "{{ _uuid | join(',') | regex_search('ovirt-(.*)$') }}"
+        vars:
+          _uuid: "{{ nb.stdout_lines | select('search', 'openshift') | flatten | regex_replace('\\)', '') | regex_replace('\\(', '') }}"
+      - name: "Exclude subnet from OVS DHCP server"
+        command:
+          cmd: 'ovn-nbctl set Logical_Switch {{ switch_uuid }} other_config:exclude_ips="192.168.3.1..192.168.3.254"'
+      - pause:
+          seconds: 2
+      - name: "Create router for internal-subnet"
+        command:
+          cmd: 'ovn-nbctl lr-add internal-router'
+      - pause:
+          seconds: 2
+      - name: "Create router port to connect to internal-switch"
+        command:
+          cmd: 'ovn-nbctl lrp-add internal-router switch-port1 56:6f:b8:e3:00:99 192.168.3.1/24'
+      - pause:
+          seconds: 2
+      - name: "Create switch port on openshift switch to connect to internal router"
+        command:
+          cmd: 'ovn-nbctl lsp-add {{ switch_uuid }} router-port1'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-type router-port1 router'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-addresses router-port1 56:6f:b8:e3:00:99'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-options router-port1 router-port=switch-port1'
+      - name: "Create gateway router"
+        command:
+          cmd: 'ovn-nbctl create Logical_Router name=gateway-router'
+          #cmd: 'ovn-nbctl create Logical_Router name=gateway-router options:chassis={{ chassis_uuid }}'
+      - pause:
+          seconds: 2
+      - name: "Create new switch to connect networks between internal and gateway routers"
+        command:
+          cmd: 'ovn-nbctl ls-add join-switch'
+      - pause:
+          seconds: 2
+      - name: "Connect gateway router to the join-switch"
+        command:
+          cmd: 'ovn-nbctl lrp-add gateway-router switch-port2 56:6f:b8:e3:00:98 192.168.255.1/24'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-add join-switch router-port2'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-type router-port2 router'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-addresses router-port2 56:6f:b8:e3:00:98'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-options router-port2 router-port=switch-port2'
+      - pause:
+          seconds: 2
+      - name: "Join internal-router to join-switch"
+        command:
+          cmd: 'ovn-nbctl lrp-add internal-router switch-port3 56:6f:b8:e3:00:97 192.168.255.2/24'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-add join-switch router-port3'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-type router-port3 router'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-addresses router-port3 56:6f:b8:e3:00:97'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-set-options router-port3 router-port=switch-port3'
+      - pause:
+          seconds: 2
+      - name: "Add static routes to internal and gateway routers"
+        command:
+          cmd: 'ovn-nbctl lr-route-add internal-router "192.168.3.0/24" 192.168.255.2'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lr-route-add gateway-router "0.0.0.0/0" 192.168.255.1'
+      - pause:
+          seconds: 2
+    #delegate_to: 127.0.0.1
