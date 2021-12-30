@@ -3,6 +3,7 @@
 # Docs:
 # https://access.redhat.com/documentation/en-us/red_hat_virtualization/4.4/html-single/administration_guide/index#Updating_all_hosts_in_a_cluster_admin
 # How-to:
+# Pior to executing playbook run: subscription-manager repos --enable=ansible-2.9-for-rhel-8-x86_64-rpms; dnf install ansible -y
 # ansible-playbook -vv -i rhev0.ocp4.keights.org, playbooks/pb_subscription_repos.yaml
 - hosts: all
   gather_facts: false
@@ -19,4 +20,15 @@
         - rhv-4-mgmt-agent-for-rhel-8-x86_64-rpms
         - advanced-virt-for-rhel-8-x86_64-rpms
         - fast-datapath-for-rhel-8-x86_64-rpms
+        - rhv-4.4-manager-for-rhel-8-x86_64-rpms
+        - jb-eap-7.4-for-rhel-8-x86_64-rpms
+        - openstack-16.2-cinderlib-for-rhel-8-x86_64-rpms
+        - rhceph-4-tools-for-rhel-8-x86_64-rpms
       state: enabled
+  - name: "Enable additional modules"
+    command:
+      cmd: 'dnf module -y enable pki-deps'
+    command:
+      cmd: 'dnf module -y enable postgresql:12'
+    command:
+      cmd: 'dnf distro-sync --nobest'
