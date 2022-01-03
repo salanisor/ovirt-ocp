@@ -13,28 +13,28 @@
       path: /opt/data
     register: lv
   - block:
-    - name: "Create partition on device(s)"
-      parted:
-        device: "{{ item }}"
-        number: 1
-        state: present
-      with_items:
-        - "{{ devices }}"
-    - name: "Create volume group"
-      lvg:
-        vg: "{{ VolumeGroup }}"
-        pvs: "{{ item }}p1"
-      with_items:
-        - "{{ devices }}"
-    - name: "Create a logical volume the size of all remaining space in the volume group"
-      lvol:
-        vg: "{{ VolumeGroup }}"
-        lv: local
-        size: 100%FREE
-    - name: "Format new logical volume"
-      filesystem:
-        fstype: xfs
-        dev: "/dev/{{ VolumeGroup }}/local"
+    #- name: "Create partition on device(s)"
+    #  parted:
+    #    device: "{{ item }}"
+    #    number: 1
+    #    state: present
+    #  with_items:
+    #    - "{{ devices }}"
+    #- name: "Create volume group"
+    #  lvg:
+    #    vg: "{{ VolumeGroup }}"
+    #    pvs: "{{ item }}p1"
+    #  with_items:
+    #    - "{{ devices }}"
+    #- name: "Create a logical volume the size of all remaining space in the volume group"
+    #  lvol:
+    #    vg: "{{ VolumeGroup }}"
+    #    lv: local
+    #    size: 100%FREE
+    #- name: "Format new logical volume"
+    #  filesystem:
+    #    fstype: xfs
+    #    dev: "/dev/{{ VolumeGroup }}/local"
     - name: "Mount logical volume"
       mount:
         fstype: xfs
