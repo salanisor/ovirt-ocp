@@ -1,11 +1,13 @@
 ---
 # Playbook to configure OVS/OVN switches and routers to be able to setup a private network in RHV and connect externally.
 # Note: this playbook assumes a non-HA network configuration.
-#
+# ansible-playbook -vv -i 127.0.0.1, -c local playbooks/pb_network_configuration.yaml
 - hosts: all
   gather_facts: false
+  vars:
+    exclude: "192.168.2.1..192.168.2.254"
   tasks:
-  - name: "Configure OVS/OVN Networking to deploy OpenShift on RHV"
+  - name: "Gather OVS/OVN Networking details"
     block:
       - name: "Gather Chassis UUID"
         command:
@@ -16,6 +18,8 @@
           #stdout_lines[0].split('\"',3)[1]": "fdca2fa5-afd8-43d4-b381-dd8f89435718"
         vars:
           uuid: "{{ sb.stdout_lines | select('search', 'Chassis \".*\"$') | flatten | regex_replace('\"', '') }}"
+      - debug:
+          msg: "{{chassis_uuid}}"
       - name: "Gather OpenShift's switch UUID"
         command:
           cmd: ovn-nbctl show
@@ -23,10 +27,17 @@
       - set_fact:
           switch_uuid: "{{ _uuid | join(',') | regex_search('ovirt-(.*)$') }}"
         vars:
-          _uuid: "{{ nb.stdout_lines | select('search', 'openshift') | flatten | regex_replace('\\)', '') | regex_replace('\\(', '') }}"
+          _uuid: "{{ nb.stdout_lines | select('search', 'openshift-network') | flatten | regex_replace('\\)', '') | regex_replace('\\(', '') }}"
+      - debug:
+          msg: "{{switch_uuid}}"
+    tags:
+      - info
+
+  - name: "Configure OVS/OVN internal Networking"
+    block:
       - name: "Exclude subnet from OVS DHCP server"
         command:
-          cmd: 'ovn-nbctl set Logical_Switch {{ switch_uuid }} other_config:exclude_ips="192.168.3.1..192.168.3.254"'
+          cmd: 'ovn-nbctl set Logical_Switch {{ switch_uuid }} other_config:exclude_ips="{{ exclude }}"'
       - pause:
           seconds: 2
       - name: "Create router for internal-subnet"
@@ -36,7 +47,7 @@
           seconds: 2
       - name: "Create router port to connect to internal-switch"
         command:
-          cmd: 'ovn-nbctl lrp-add internal-router switch-port1 56:6f:b8:e3:00:99 192.168.3.1/24'
+          cmd: 'ovn-nbctl lrp-add internal-router switch-port1 56:6f:b8:e3:00:99 192.168.2.1/24'
       - pause:
           seconds: 2
       - name: "Create switch port on openshift switch to connect to internal router"
@@ -54,10 +65,56 @@
           seconds: 2
       - command:
           cmd: 'ovn-nbctl lsp-set-options router-port1 router-port=switch-port1'
+    tags:
+      - internal
+
+  - name: "Configure OVS/OVN external Networking"
+    block:
+      - name: "Create new port on internal-router"
+        command:
+          cmd: 'ovn-nbctl lrp-add internal-router switch-port2 56:6f:b8:e3:00:98 192.168.0.123/24'
+      - pause:
+          seconds: 2
+      #- name: "Create new switch to connect between internal and external networks"
+      #  command:
+      #    cmd: 'ovn-nbctl ls-add external-switch'
+      #- pause:
+      #    seconds: 2
+      #- command:
+      #    cmd: 'ovn-nbctl lsp-add external-switch router-port2'
+      #- pause:
+      #    seconds: 2
+      #- command:
+      #    cmd: 'ovn-nbctl lsp-set-type router-port2 router'
+      #- pause:
+      #    seconds: 2
+      #- command:
+      #    cmd: 'ovn-nbctl lsp-set-addresses router-port2 56:6f:b8:e3:00:98'
+      #- pause:
+      #    seconds: 2
+      #- command:
+      #    cmd: 'ovn-nbctl lsp-set-options router-port2 router-port=switch-port2'
+
+      #- name: "Create a bridge for ovirtmgmt"
+      #  command:
+      #    cmd: 'ovs-vsctl add-br br-ovirtmgmt'
+      #- pause:
+      #    seconds: 2
+
+      #- name: "Create a bridge mapping name externalNet to br-ovirtmgmt"
+      #  command:
+      #    cmd: 'ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=externalNet:br-ovirtmgmt'
+      #- pause:
+      #    seconds: 2
+    tags:
+      - external
+
+  - name: "Configure OVS/OVN gateway Networking"
+    block:
       - name: "Create gateway router"
         command:
-          cmd: 'ovn-nbctl create Logical_Router name=gateway-router'
-          #cmd: 'ovn-nbctl create Logical_Router name=gateway-router options:chassis={{ chassis_uuid }}'
+      #    cmd: 'ovn-nbctl lr-add gateway-router'
+          cmd: 'ovn-nbctl create Logical_Router name=gateway-router options:chassis={{ chassis_uuid }}'
       - pause:
           seconds: 2
       - name: "Create new switch to connect networks between internal and gateway routers"
@@ -65,7 +122,7 @@
           cmd: 'ovn-nbctl ls-add join-switch'
       - pause:
           seconds: 2
-      - name: "Connect gateway router to the join-switch"
+      - name: "Connect gateway-router to the join-switch"
         command:
           cmd: 'ovn-nbctl lrp-add gateway-router switch-port2 56:6f:b8:e3:00:98 192.168.255.1/24'
       - pause:
@@ -109,11 +166,40 @@
           seconds: 2
       - name: "Add static routes to internal and gateway routers"
         command:
-          cmd: 'ovn-nbctl lr-route-add internal-router "192.168.3.0/24" 192.168.255.2'
+          cmd: 'ovn-nbctl lr-route-add gateway-router "192.168.2.0/24" 192.168.255.2'
       - pause:
           seconds: 2
       - command:
-          cmd: 'ovn-nbctl lr-route-add gateway-router "0.0.0.0/0" 192.168.255.1'
+          cmd: 'ovn-nbctl lr-route-add internal-router "0.0.0.0/0" 192.168.255.1'
       - pause:
           seconds: 2
-    #delegate_to: 127.0.0.1
+    tags:
+      - gateway
+
+  - name: "Configure overlay/physical network"
+    block:
+      - name: "Create new port on gateway router"
+        command:
+          cmd: 'ovn-nbctl lrp-add gateway-router switch-port4 56:6f:b8:e3:00:96 192.168.0.123/24'
+      - pause:
+          seconds: 2
+      - name: "Create external facing switch to connect to gateway router"
+        command:
+          cmd: 'ovn-nbctl ls-add external-switch'
+      - pause:
+          seconds: 2
+      - command:
+          cmd: 'ovn-nbctl lsp-add external-switch router-port4'
+      - pause:
+          seconds: 2
+          cmd: 'ovn-nbctl lsp-set-type router-port4 router'
+      - pause:
+          seconds: 2
+          cmd: 'ovn-nbctl lsp-set-addresses outside-gw1 56:6f:b8:e3:00:96'
+      - pause:
+          seconds: 2
+          cmd: 'ovn-nbctl lsp-set-options router-port4 router-port=switch-port4'
+      - pause:
+          seconds: 2
+    tags:
+      - nothing
