@@ -1,5 +1,5 @@
 ---
-- hosts: cluster
+- hosts: all
   gather_facts: true
   become: yes
   become_method: sudo
@@ -39,15 +39,17 @@
         [env]
         node=worker
     when: "'worker' in inventory_hostname"
-  - name: "Set /etc/hosts"
-    blockinfile:
-      dest: /etc/hosts
-      block: |
-        192.168.0.50 control0.keights.org cka-control0
-        192.168.0.51 worker0.keights.org cka-worker0
-        192.168.0.52 worker1.keights.org cka-worker1
-        192.168.0.53 worker2.keights.org cka-worker2
-      backup: yes
+  - name: "generate /etc/hosts.ansible file"
+    template: 
+      src: etc/hosts.j2
+      dest: '/etc/hosts.ansible'
+      owner: root
+      group: root
+      mode: 0644
+    tags: etc_hosts
+  - name: "install /etc/hosts.ansible file"
+    command: "cp /etc/hosts.ansible /etc/hosts"
+    tags: etc_hosts
   - name: "Copy modules file"
     copy:
       src: "k8s.conf"
@@ -64,6 +66,10 @@
     dnf:
       name: "*"
       state: latest
+  - name: "Install auxilary packages"
+    dnf:
+      name: "firewalld.noarch"
+      state: installed
   - name: "Enable services FirewallD control"
     firewalld:
       permanent: yes
@@ -75,7 +81,6 @@
       - etcd-client
       - etcd-server 
     when: "'control' == ansible_local.cluster.env.node"
-    #when: ansible_local.cluster.env.node is search("control") 
   - name: "Enable ports FirewallD"
     firewalld:
       permanent: yes
