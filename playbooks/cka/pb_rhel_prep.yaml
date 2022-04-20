@@ -98,9 +98,13 @@
       state: enabled
       permanent: yes
       zone: public
-    # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+  # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
   - name: "Install k8s components"
     block:
+    - name: "Configure k8s RPM repos"
+      template:
+        src: templates/etc/yum.repos.d/kubernetes.repo.j2
+        dest: /etc/yum.repos.d/kubernetes.repo
     - name: "Download crio's repos"
       get_url: 
         url: "{{item}}"
@@ -120,19 +124,21 @@
       dnf:
         name: cri-o,cri-tools,container-selinux.noarch
         state: latest
-    - name: "Copy over k8s rpms"
-      copy:
-        src: "{{item}}"
-        dest: "/tmp/{{item}}"
-      with_items:
-        - kubeadm-1.23.1-0.x86_64.rpm
-        - kubectl-1.23.1-0.x86_64.rpm
-        - kubelet-1.23.1-0.x86_64.rpm
-        - kubernetes-cni-0.8.7-0.x86_64.rpm
+    #- name: "Copy over k8s rpms"
+    #  copy:
+    #    src: "{{item}}"
+    #    dest: "/tmp/{{item}}"
+    #  with_items:
+    #    - kubeadm-1.23.1-0.x86_64.rpm
+    #    - kubectl-1.23.1-0.x86_64.rpm
+    #    - kubelet-1.23.1-0.x86_64.rpm
+    #    - kubernetes-cni-0.8.7-0.x86_64.rpm
     - name: "Install k8s rpms"
       dnf:
-        name: '/tmp/kubernetes-cni-0.8.7-0.x86_64.rpm,/tmp/kubeadm-1.23.1-0.x86_64.rpm,/tmp/kubectl-1.23.1-0.x86_64.rpm,/tmp/kubelet-1.23.1-0.x86_64.rpm'
-        state: present
+        #name: '/tmp/kubernetes-cni-0.8.7-0.x86_64.rpm,/tmp/kubeadm-1.23.1-0.x86_64.rpm,/tmp/kubectl-1.23.1-0.x86_64.rpm,/tmp/kubelet-1.23.1-0.x86_64.rpm'
+        name: 'kubeadm,kubectl,kubelet'
+        state: latest
+        disable_excludes: kubernetes
     - name: "Enable k8s services"
       systemd:
         name: "{{item}}"
