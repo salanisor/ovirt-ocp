@@ -1,5 +1,6 @@
 ---
-- hosts: cluster
+- hosts: all
+  remote_user: salanis
   gather_facts: true
   become: yes
   become_method: sudo
@@ -19,9 +20,10 @@
     blockinfile:
       dest: /etc/hosts
       block: |
-        192.168.0.2 control0.keights.org control0
-        192.168.0.13 worker1.keights.org worker1
-        192.168.0.14 worker0.keights.org worker0
+        192.168.122.237 control0.keights.org control0
+        192.168.122.24 worker0.keights.org worker0
+        192.168.122.125 worker1.keights.org worker1
+        192.168.122.236 worker2.keights.org worker2
       backup: yes
   - name: "Remove line"
     lineinfile:
@@ -36,13 +38,13 @@
       regexp: '^nameserver 127.0.0.53$'
       backup: yes
       state: present
-  - name: "Update cache"
-    apt:
-      update_cache: yes
-  - name: Upgrade all packages on servers
-    apt:
-      name: "*"
-      state: latest
+  #- name: "Update cache"
+  #  apt:
+  #    update_cache: yes
+  #- name: Upgrade all packages on servers
+  #  apt:
+  #    name: "*"
+  #    state: latest
   - name: "check if a reboot is required"
     shell: "[ -f /var/run/reboot-required ]"
     failed_when: False

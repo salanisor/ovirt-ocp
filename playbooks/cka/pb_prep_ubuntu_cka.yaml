@@ -1,34 +1,81 @@
 ---
-- hosts: cluster
+# How-to: ansible-playbook -i ~/ansible/inventory -v pb_prep_ubuntu_cka.yaml -K
+- hosts: all
   become: true
+  remote_user: salanis
   gather_facts: false
   vars:
     input: "{{ lookup('template', '/etc/fstab') }}"
     repline: "{{ input | regex_search('^\\/swap\\.img.*$') }}"
   tasks:
   #/swap.img	none	swap	sw	0	0
+  - name: "Disable swap"
+    command:
+      cmd: swapoff -a
   - name: "Comment out swap mount"
     replace:
       path: /etc/fstab
       regexp: '^\/swap\.img.*$'
       replace: ""
       backup: yes
-  #- name: "Installed required packages"
-  #  apt:
-  #    pkg:
-  #      - git
-  #    state: latest
-  - name: "Copy required files"
-    copy:
-      src: "{{item}}"
-      dest: "/usr/local/bin/{{item}}"
-      mode: '0555'
-    with_items:
-      - setup-container.sh
-      - setup-kubetools-ubuntu.sh
-  - name: "Run setup-container"
+  - name: "Place modules for containerd"
+    template:
+      src: templates/etc/modules-load.d/containerd.conf.j2
+      dest: /etc/modules-load.d/containerd.conf
+  - name: "Place modules for containerd"
+    template:
+      src: templates/etc/sysctl.d/99-kubernetes-cri.conf.j2
+      dest: /etc/sysctl.d/99-kubernetes-cri.conf
+  - name: "Installed containerd package"
+    apt:
+      name: containerd
+      state: latest
+  - name: "create containerd directory"
+    file:
+      path: /etc/containerd
+      state: directory
+  - name: "create containerd configuration"
+    shell:
+      cmd: containerd config default >> /etc/containerd/config.toml
+    register: container
+    args:
+      creates: /etc/containerd/config.toml
+  - name: "Restart containerd"
+    systemd:
+      state: restarted
+      name: containerd
+    when: container.changed
+  - name: "Install google's GPG key"
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      state: present
+  - name: "Update k8s repository"
+    template:
+      src: templates/etc/apt/sources.list.d/kubernetes.list.j2
+      dest: /etc/apt/sources.list.d/kubernetes.list
+    register: repo
+  - apt:
+      update_cache: yes
+    when: repo.changed
+  - name: "Install required packages"
+    apt:
+      pkg:
+      - apt-transport-https
+      - curl
+      - ca-certificates
+      state: latest
+  - name: "Install kubernetes packages"
+    apt:
+      pkg:
+      - kubelet=1.23.1-00
+      - kubeadm=1.23.1-00
+      - kubectl=1.23.1-00
+  - name: "Install kubernetes packages"
+    apt:
+      pkg:
+      - etcd-client
+    when: "'control' in inventory_hostname"
+  - name: "Turn off automatic updates"
     command:
-      cmd: "/usr/local/bin/setup-container.sh"
-  - name: "Run kubetools-ubuntu"
-    command:
-      cmd: "/usr/local/bin/setup-kubetools-ubuntu.sh"
+      cmd: apt-mark hold kubelet kubeadm kubectl
+...

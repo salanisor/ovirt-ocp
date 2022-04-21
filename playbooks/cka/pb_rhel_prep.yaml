@@ -136,7 +136,7 @@
     - name: "Install k8s rpms"
       dnf:
         #name: '/tmp/kubernetes-cni-0.8.7-0.x86_64.rpm,/tmp/kubeadm-1.23.1-0.x86_64.rpm,/tmp/kubectl-1.23.1-0.x86_64.rpm,/tmp/kubelet-1.23.1-0.x86_64.rpm'
-        name: 'kubeadm,kubectl,kubelet'
+        name: 'kubeadm,kubectl,kubelet,kubernetes-cni'
         state: latest
         disable_excludes: kubernetes
     - name: "Enable k8s services"
