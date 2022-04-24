@@ -1,9 +1,9 @@
 ---
 # How-to: ansible-playbook -i ~/ansible/inventory -v pb_prep_ubuntu_cka.yaml -K
-- hosts: all
+- hosts: cluster
   become: true
   remote_user: salanis
-  gather_facts: false
+  gather_facts: true
   vars:
     input: "{{ lookup('template', '/etc/fstab') }}"
     repline: "{{ input | regex_search('^\\/swap\\.img.*$') }}"
@@ -18,6 +18,14 @@
       regexp: '^\/swap\.img.*$'
       replace: ""
       backup: yes
+  - name: "generate /etc/hosts.ansible file"
+    template: 
+      src: etc/hosts.j2
+      dest: '/etc/hosts'
+      owner: root
+      group: root
+      mode: 0644
+    tags: etc_hosts
   - name: "Place modules for containerd"
     template:
       src: templates/etc/modules-load.d/containerd.conf.j2
@@ -26,9 +34,16 @@
     template:
       src: templates/etc/sysctl.d/99-kubernetes-cri.conf.j2
       dest: /etc/sysctl.d/99-kubernetes-cri.conf
-  - name: "Installed containerd package"
+  - apt:
+      update_cache: yes
+  - name: "Install required packages"
     apt:
-      name: containerd
+      pkg:
+      - apt-transport-https
+      - curl
+      - ca-certificates
+      - gnupg
+      - containerd
       state: latest
   - name: "create containerd directory"
     file:
@@ -56,14 +71,6 @@
     register: repo
   - apt:
       update_cache: yes
-    when: repo.changed
-  - name: "Install required packages"
-    apt:
-      pkg:
-      - apt-transport-https
-      - curl
-      - ca-certificates
-      state: latest
   - name: "Install kubernetes packages"
     apt:
       pkg:
