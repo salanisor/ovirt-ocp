@@ -1,0 +1,44 @@
+---
+# tasks file for role_kvm_provision
+- name: "Ensure requirements in place"
+  package:
+    name:
+      - libguestfs-tools.noarch
+      - python3-libvirt.x86_64
+    state: present
+- name: "Get VMs list"
+  virt:
+    command: list_vms
+  register: existing_vms
+  changed_when: no
+- name: "Create vm template"
+  template:
+    src: vm-template.xml.j2
+    dest: "/tmp/{{item}}.xml"
+  loop: "{{vm_name}}"
+  when: "vm_name not in existing_vms.list_vms"
+- name: "Copy base image to libvirt directory"
+  copy:
+    dest: "{{ libvirt_pool_dir }}/{{ item }}.qcow2"
+    force: no
+    remote_src: yes 
+    src: "{{ libvirt_pool_dir }}/rhel-8.5-x86_64-kvm.qcow2-OG"
+    owner: qemu
+    group: qemu
+    mode: u=rw,g=r,o=r
+  loop: "{{vm_name}}"
+  when: "vm_name not in existing_vms.list_vms"
+- name: "Define vm"
+  command:
+    cmd: "virsh define --file /tmp/{{item}}.xml"
+  when: "vm_name not in existing_vms.list_vms"
+  loop: "{{vm_name}}"
+#- name: "Ensure VM is started"
+#  virt:
+#    name: "{{item}}"
+#    state: running
+#  register: vm_start_results
+#  until: "vm_start_results is success"
+#  retries: 15
+#  delay: 2
+#  loop: "{{vm_name}}"

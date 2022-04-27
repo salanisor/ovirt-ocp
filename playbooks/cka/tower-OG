@@ -1,0 +1,11 @@
+[tower]
+tower0.ocp4.keights.org ansible_host: 192.168.122.117
+tower1.ocp4.keights.org ansible_host: 192.168.122.97
+tower2.ocp4.keights.org ansible_host: 192.168.122.158
+
+[db]
+dbase.ocp4.keights.org ansible_host: 192.168.122.180
+
+[cluster:children]
+tower
+db

@@ -1,0 +1,22 @@
+---
+- name: "Deploys VM based on cloud image"
+  hosts: 127.0.0.1
+  connection: local
+  gather_facts: yes
+  become: yes
+  vars:
+    pool_dir: "/var/lib/libvirt/images"
+    vcpus: 2
+    ram_mb: 4096
+    cleanup: no
+    net: default
+  tasks:
+    - name: "KVM Provision role"
+      include_role:
+        name: role_kvm_provision
+      vars:
+        libvirt_pool_dir: "{{ pool_dir }}"
+        vm_vcpus: "{{ vcpus }}"
+        vm_ram_mb: "{{ ram_mb }}"
+        vm_net: "{{ net }}"
+        cleanup_tmp: "{{ cleanup }}"

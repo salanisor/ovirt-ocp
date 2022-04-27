@@ -1,0 +1,51 @@
+---
+- hosts: all
+  gather_facts: true
+  tasks:
+  - name: "Set proper hostnames"
+    hostname:
+      name: "{{ inventory_hostname }}"
+  - name: "Update the consumed subscriptions"
+    redhat_subscription:
+      state: present
+      activationkey: rhel
+      org_id: 8066175
+      pool: '^Red Hat Developer Subscription for Individuals$'
+     #pool: '^Red Hat Enterprise Server$'
+  - name: "Disable all repositories except rhel-8-server-rpms"
+    rhsm_repository:
+      name: ansible-2.9-for-rhel-8-x86_64-rpms,rhel-8-for-x86_64-baseos-rpms,rhel-8-for-x86_64-appstream-rpms
+  - name: "Update OS"
+    dnf:
+      name: '*'
+      state: latest
+  - name: "generate /etc/hosts.ansible file"
+    template: 
+      src: etc/hosts.j2
+      dest: '/etc/hosts'
+      owner: root
+      group: root
+      mode: 0644
+    tags: etc_hosts
+  - name: "install needed network manager libs"
+    package:
+      name:
+        - NetworkManager-libnm
+        - nm-connection-editor
+        - libsemanage.x86_64
+        - python3-libsemanage.x86_64
+      state: present
+  - name: "Try nmcli add Ethernet - conn_name only & ip4 gw4"
+    nmcli:
+      type: ethernet
+      conn_name: eth0
+      ip4: "{{hostvars[inventory_hostname]['ansible_env'].SSH_CONNECTION.split(' ')[2]}}"
+      gw4: '192.168.122.1'
+      state: present
+
+#      Ends:                12/31/2026
+#Subscription Name:   Red Hat Ansible Automation Platform, Premium (100 Managed Nodes, Business Partner Supported)
+#SKU:                 MCT3994F3
+#Contract:            12856738
+#Pool ID:             8a85f99c7d76f2fd017d96c564910680
+

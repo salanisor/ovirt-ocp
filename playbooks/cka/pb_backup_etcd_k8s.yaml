@@ -1,0 +1,151 @@
+---
+- hosts: control
+  gather_facts: false
+  remote_user: salanis
+  tasks:
+  - name: "backup etcd"
+    command:
+      cmd: 
+      chdir: /tmp/ 
+    environment:
+      ETCDCTL_API: 3
+
+----------------
+Backing up and Restoring Kubernetes Data in etcd
+Introduction
+
+Backups are an important part of any resilient system. Kubernetes is no exception. In this lab, you will have the opportunity to practice your skills by backing up and restoring a Kubernetes cluster state stored in etcd. This will help you get comfortable with the steps involved in backing up Kubernetes data.
+Solution
+
+Log in to the provided lab server using the credentials provided:
+ssh cloud_user@<PUBLIC_IP_ADDRESS>
+Back Up the etcd Data
+
+    Look up the value for the key cluster.name in the etcd cluster:
+    ETCDCTL_API=3 etcdctl get cluster.name \
+      --endpoints=https://10.0.1.101:2379 \
+      --cacert=/home/cloud_user/etcd-certs/etcd-ca.pem \
+      --cert=/home/cloud_user/etcd-certs/etcd-server.crt \
+      --key=/home/cloud_user/etcd-certs/etcd-server.key
+
+    The returned value should be beebox.
+
+    Back up etcd using etcdctl and the provided etcd certificates:
+    ETCDCTL_API=3 etcdctl snapshot save /home/cloud_user/etcd_backup.db \
+      --endpoints=https://10.0.1.101:2379 \
+      --cacert=/home/cloud_user/etcd-certs/etcd-ca.pem \
+      --cert=/home/cloud_user/etcd-certs/etcd-server.crt \
+      --key=/home/cloud_user/etcd-certs/etcd-server.key
+
+    Reset etcd by removing all existing etcd data:
+    sudo systemctl stop etcd
+    sudo rm -rf /var/lib/etcd
+
+Restore the etcd Data from the Backup
+
+    Restore the etcd data from the backup (this command spins up a temporary etcd cluster, saving the data from the backup file to a new data directory in the same location where the previous data directory was):
+    sudo ETCDCTL_API=3 etcdctl snapshot restore /home/cloud_user/etcd_backup.db \
+      --initial-cluster etcd-restore=https://10.0.1.101:2380 \
+      --initial-advertise-peer-urls https://10.0.1.101:2380 \
+      --name etcd-restore \
+      --data-dir /var/lib/etcd
+
+    Set ownership on the new data directory:
+    sudo chown -R etcd:etcd /var/lib/etcd
+
+    Start etcd:
+    sudo systemctl start etcd
+
+    Verify the restored data is present by looking up the value for the key cluster.name again:
+    ETCDCTL_API=3 etcdctl get cluster.name \
+      --endpoints=https://10.0.1.101:2379 \
+      --cacert=/home/cloud_user/etcd-certs/etcd-ca.pem \
+      --cert=/home/cloud_user/etcd-certs/etcd-server.crt \
+      --key=/home/cloud_user/etcd-certs/etcd-server.key
+
+    The returned value should be beebox.
+
+Conclusion
+
+Congratulations on successfully completing this hands-on lab!
+
+======================================
+Controlling Access in Kubernetes with RBAC
+Introduction
+
+Role-based access control is an important component when it comes to managing a Kubernetes cluster securely. The more users and automated processes there are that need to interface with the Kubernetes API, the more important controlling access becomes. In this lab, you will have the opportunity to practice your skills with the Kubernetes RBAC system by implementing your own RBAC permissions to appropriately limit user access.
+Solution
+
+Log in to the lab server using the credentials provided:
+ssh cloud_user@<PUBLIC_IP_ADDRESS>
+
+Note: When copying and pasting code into Vim from the lab guide, first enter :set paste (and then i to enter insert mode) to avoid adding unnecessary spaces and hashes.
+Create a Role for the dev User
+
+    Test access by attempting to list pods as the dev user:
+    kubectl get pods -n beebox-mobile --kubeconfig dev-k8s-config
+
+    We'll get an error message.
+
+    Create a role spec file:
+    vi pod-reader-role.yml
+
+    Add the following to the file:
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      namespace: beebox-mobile
+      name: pod-reader
+    rules:
+    - apiGroups: [""]
+      resources: ["pods", "pods/log"]
+      verbs: ["get", "watch", "list"]
+
+    Save and exit the file by pressing Escape followed by :wq.
+
+    Create the role:
+    kubectl apply -f pod-reader-role.yml
+
+Bind the Role to the dev User and Verify Your Setup Works
+
+    Create the RoleBinding spec file:
+    vi pod-reader-rolebinding.yml
+
+    Add the following to the file:
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: pod-reader
+      namespace: beebox-mobile
+    subjects:
+    - kind: User
+      name: dev
+      apiGroup: rbac.authorization.k8s.io
+    roleRef:
+      kind: Role
+      name: pod-reader
+      apiGroup: rbac.authorization.k8s.io
+
+    Save and exit the file by pressing Escape followed by :wq.
+
+    Create the RoleBinding:
+    kubectl apply -f pod-reader-rolebinding.yml
+
+    Test access again to verify you can successfully list pods:
+    kubectl get pods -n beebox-mobile --kubeconfig dev-k8s-config
+
+    This time, we should see a list of pods (there's just one).
+
+    Verify the dev user can read pod logs:
+    kubectl logs beebox-auth -n beebox-mobile --kubeconfig dev-k8s-config
+
+    We'll get an Auth processing... message.
+
+    Verify the dev user cannot make changes by attempting to delete a pod:
+    kubectl delete pod beebox-auth -n beebox-mobile --kubeconfig dev-k8s-config
+
+    We'll get an error, which is what we want.
+
+Conclusion
+
+Congratulations on successfully completing this hands-on lab!`
