@@ -1,0 +1,90 @@
+---
+- hosts: all
+  remote_user: root
+  gather_facts: true
+  tasks:
+  - apt:
+      update_cache: yes
+  - name: "Install required packages"
+    apt:
+      pkg:
+      - systemd-resolved
+      - libnss-resolve
+      - nplan
+      - netplan.io
+      state: latest
+#  - name: "set correct dns"
+#    command:
+#      cmd: systemd-resolve --interface enp1s0 --set-dns 1.1.1.1 --set-domain keights.org
+  - name: "Set static IPs"
+    template:
+      src: 00-installer-config.yaml.j2
+      dest: /etc/netplan/00-installer-config.yaml
+      owner: root
+      group: root
+      mode: '0644'
+      backup: yes
+    register: netplan
+  - name: "Generating Netplan Configuration"
+    command: netplan generate
+    when: netplan.changed
+  - name: "Applying Netplan Configuration"
+    command: netplan apply
+    when: netplan.changed
+  - name: "Set /etc/hosts"
+    blockinfile:
+      dest: /etc/hosts
+      block: |
+        192.168.122.2 control.keights.org control
+        192.168.122.3 worker0.keights.org worker0
+        192.168.122.4 worker1.keights.org worker1
+      backup: yes
+  - name: "Remove line"
+    lineinfile:
+      path: /etc/resolv.conf
+      regexp: '^options edns0 trust-ad$'
+      state: absent
+  - name: "update DNS"
+    lineinfile:
+      line: "nameserver 8.8.8.8"
+      path: /etc/resolv.conf
+      backrefs: yes
+      regexp: '^nameserver 127.0.0.53$'
+      backup: yes
+      state: present
+  - name: "Set hostname"
+    ansible.builtin.hostname:
+      name: "{{ inventory_hostname }}"
+    when:
+      ansible_domain != ansible_ssh_host
+  - name: Upgrade all packages on servers
+    apt:
+      name: "*"
+      state: latest
+  - name: "check if a reboot is required"
+    shell: "[ -f /var/run/reboot-required ]"
+    failed_when: False
+    register: reboot_required
+    changed_when: reboot_required.rc == 0
+    notify: reboot
+  handlers:
+  #- name: "reboot"
+  #  command: shutdown -r now 'Rebooting to complete system upgrade'
+  #  args:
+  #    removes: '/var/run/reboot-required'
+  #  when: reboot_required.rc == 0
+  - name: restart machine
+    command: shutdown -r now "Ansible updates triggered"
+    async: 0
+    poll: 0
+    ignore_errors: True
+    #when:
+    #  reboot is defined
+  - name: Waiting for server to come back up
+    local_action: wait_for host="{{ inventory_hostname }}" port=22 state=started
+  - name: Validate ansible_fqdn == inventory_hostname
+    tags:
+      - validate
+    assert:
+      that:
+        ansible_fqdn == inventory_hostname

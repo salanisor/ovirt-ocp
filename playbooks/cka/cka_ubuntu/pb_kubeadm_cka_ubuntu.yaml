@@ -1,0 +1,18 @@
+---
+# How-to: ansible-playbook -i ~/ansible/inventory -vvv pb_kubeadm_cka_ubuntu.yaml
+- hosts: cluster
+  remote_user: root
+  gather_facts: true
+  tasks:
+  # kubeadm-config.yaml
+  - name: "Set kubeadm-config.yaml"
+    template:
+      src: 'templates/root/kubeadm-config.yaml.j2'
+      dest: '/root/kubeadm-config.yaml'
+    when: "'control' in inventory_hostname"
+  - name: "Set kubeadm-config.sh"
+    template:
+      src: 'templates/root/kubeadm-config.sh.j2'
+      dest: '/root/kubeadm-config.sh'
+      mode: 0550
+    when: "'control' in inventory_hostname"

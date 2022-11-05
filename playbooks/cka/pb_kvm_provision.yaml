@@ -14,9 +14,3 @@
     - name: "KVM Provision role"
       include_role:
         name: role_kvm_provision
-      vars:
-        libvirt_pool_dir: "{{ pool_dir }}"
-        vm_vcpus: "{{ vcpus }}"
-        vm_ram_mb: "{{ ram_mb }}"
-        vm_net: "{{ net }}"
-        cleanup_tmp: "{{ cleanup }}"

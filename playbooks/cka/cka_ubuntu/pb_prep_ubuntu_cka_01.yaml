@@ -1,8 +1,7 @@
 ---
 # How-to: ansible-playbook -i ~/ansible/inventory -v pb_prep_ubuntu_cka.yaml -K
 - hosts: cluster
-  become: true
-  remote_user: salanis
+  remote_user: root
   gather_facts: true
   vars:
     input: "{{ lookup('template', '/etc/fstab') }}"
@@ -60,6 +59,9 @@
       state: restarted
       name: containerd
     when: container.changed
+  - name: "Set crictl configuration"
+    command:
+      cmd: crictl config --set runtime-endpoint=unix:///run/containerd/containerd.sock --set image-endpoint=unix:///run/containerd/containerd.sock
   - name: "Install google's GPG key"
     apt_key:
       url: https://packages.cloud.google.com/apt/doc/apt-key.gpg

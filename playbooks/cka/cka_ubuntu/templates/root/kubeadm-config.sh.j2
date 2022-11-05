@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+set -x
+mkdir -p $HOME/.kube
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+echo "export KUBECONFIG=$HOME/.kube/config" >> $HOME/.bash_profile
+. $HOME/.bash_profile

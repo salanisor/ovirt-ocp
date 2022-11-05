@@ -11,6 +11,8 @@
 # Network nodes as generated through Ansible.
 {% for host in play_hosts %}
 {%- if host != 'localhost' %}
+{%- if host != 'ubuntu' %}
 {{ hostvars[host].ansible_facts.default_ipv4.address }}  {{ hostvars[host].ansible_facts.fqdn }}  {{ hostvars[host].ansible_facts.hostname }}
+{% endif %}
 {% endif %}
 {% endfor %}
