@@ -5,4 +5,25 @@
     name:
       - libguestfs-tools.noarch
       - python3-libvirt.x86_64
+      - python3-lxml.x86_64
+    state: latest
+- name: "Load the macvlan kernel module"
+  modprobe:
+    name: macvlan
+    state: present
+- name: "Enable libvirtd service"
+  systemd:
+    name: 'libvirtd.service'
+    state: started
+    enabled: true
+# Define a new network
+- virt_net:
+    command: define
+    name: macvtap-net
+    state: active
+    autostart: true
+    xml: '{{ lookup("template", "macvlan.xml.j2") }}'
+- name: "Install libvirt"
+  dnf:
+    name: '@Virtualization Host'
     state: present
