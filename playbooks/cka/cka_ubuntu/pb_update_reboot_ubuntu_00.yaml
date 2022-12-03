@@ -1,14 +1,14 @@
 ---
 - hosts: all
-  remote_user: root
   gather_facts: true
+  become: true
   tasks:
-  - apt:
-      update_cache: yes
+  #- apt:
+  #    update_cache: yes
   - name: "Install required packages"
     apt:
       pkg:
-      - systemd-resolved
+      #- systemd-resolved
       - libnss-resolve
       - nplan
       - netplan.io
@@ -25,25 +25,35 @@
       mode: '0644'
       backup: yes
     register: netplan
+    tags:
+    - net
   - name: "Generating Netplan Configuration"
     command: netplan generate
     when: netplan.changed
+    tags:
+    - net
   - name: "Applying Netplan Configuration"
     command: netplan apply
     when: netplan.changed
+    tags:
+    - net
   - name: "Set /etc/hosts"
     blockinfile:
       dest: /etc/hosts
       block: |
-        192.168.122.2 control.keights.org control
-        192.168.122.3 worker0.keights.org worker0
-        192.168.122.4 worker1.keights.org worker1
+        192.168.0.200 control.keights.org control
+        192.168.0.201 worker0.keights.org worker0
+        192.168.0.202 worker1.keights.org worker1
       backup: yes
+    tags:
+    - net
   - name: "Remove line"
     lineinfile:
       path: /etc/resolv.conf
       regexp: '^options edns0 trust-ad$'
       state: absent
+    tags:
+    - net
   - name: "update DNS"
     lineinfile:
       line: "nameserver 8.8.8.8"
@@ -52,6 +62,8 @@
       regexp: '^nameserver 127.0.0.53$'
       backup: yes
       state: present
+    tags:
+    - net
   - name: "Set hostname"
     ansible.builtin.hostname:
       name: "{{ inventory_hostname }}"
@@ -66,20 +78,11 @@
     failed_when: False
     register: reboot_required
     changed_when: reboot_required.rc == 0
-    notify: reboot
-  handlers:
-  #- name: "reboot"
-  #  command: shutdown -r now 'Rebooting to complete system upgrade'
-  #  args:
-  #    removes: '/var/run/reboot-required'
-  #  when: reboot_required.rc == 0
   - name: restart machine
     command: shutdown -r now "Ansible updates triggered"
     async: 0
     poll: 0
     ignore_errors: True
-    #when:
-    #  reboot is defined
   - name: Waiting for server to come back up
     local_action: wait_for host="{{ inventory_hostname }}" port=22 state=started
   - name: Validate ansible_fqdn == inventory_hostname

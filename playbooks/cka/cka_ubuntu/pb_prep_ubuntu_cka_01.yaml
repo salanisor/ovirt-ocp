@@ -1,7 +1,8 @@
 ---
 # How-to: ansible-playbook -i ~/ansible/inventory -v pb_prep_ubuntu_cka.yaml -K
 - hosts: cluster
-  remote_user: root
+  remote_user: salanis
+  become: true
   gather_facts: true
   vars:
     input: "{{ lookup('template', '/etc/fstab') }}"
@@ -33,8 +34,22 @@
     template:
       src: templates/etc/sysctl.d/99-kubernetes-cri.conf.j2
       dest: /etc/sysctl.d/99-kubernetes-cri.conf
+  - name: "Set crictl configuration"
+    block:
+    #command:
+    #  cmd: crictl config --set runtime-endpoint=unix:///run/containerd/containerd.sock --set image-endpoint=unix:///run/containerd/containerd.sock
+    - template:
+        src: templates/etc/apt/sources.list.d/libcontainers.list.j2
+        dest: "/etc/apt/sources.list.d/libcontainers.list"
+    - template:
+        src: templates/etc/apt/sources.list.d/crio.list.j2
+        dest: "/etc/apt/sources.list.d/crio.list"
+    tags:
+    - runt
   - apt:
       update_cache: yes
+    tags:
+    - runt
   - name: "Install required packages"
     apt:
       pkg:
@@ -43,7 +58,21 @@
       - ca-certificates
       - gnupg
       - containerd
+      - cri-tools
       state: latest
+    tags:
+    - runt
+  - name: "Place cri-tools config"
+    template:
+      src: templates/etc/crictl.yaml.j2
+      dest: /etc/crictl.yaml
+    tags:
+    - runt
+  - name: "Verify crictl configuration"
+    command:
+      cmd: crictl info
+    tags:
+    - runt
   - name: "create containerd directory"
     file:
       path: /etc/containerd
@@ -59,9 +88,6 @@
       state: restarted
       name: containerd
     when: container.changed
-  - name: "Set crictl configuration"
-    command:
-      cmd: crictl config --set runtime-endpoint=unix:///run/containerd/containerd.sock --set image-endpoint=unix:///run/containerd/containerd.sock
   - name: "Install google's GPG key"
     apt_key:
       url: https://packages.cloud.google.com/apt/doc/apt-key.gpg

@@ -1,0 +1,39 @@
+# Upgrade k8s
+1) refresh package repos
+apt update
+
+2) Find out k versions available
+apt show kubectl -a |egrep 1.23
+
+➜ root@cluster3-worker2:~# apt show kubectl -a | grep 1.25
+Version: 1.25.3-00
+Version: 1.25.2-00
+Version: 1.25.1-00
+Version: 1.25.0-00
+
+3) cordon and drain node before upgrading packages
+k drain <node_name> --ignore-daemonsets --delete-emptydir-data --force
+
+4) install the required k8s version
+apt install kubeadm=1.23.14-00 -y --allow-change-held-packages
+
+5) plan the kubeadm upgrade
+kubeadm upgrade plan
+
+6) Apply upgrade to control plane
+kubeadm upgrade apply 1.23.14
+
+7) apply upgrade to node
+kubeadm upgrade node
+
+8) Upgrade the kubelet
+apt install kubectl=1.23.14-00 kubelet=1.23.14-00 -y --allow-change-held-packages
+
+9) Reload systemd units
+systemctl daemon-reload
+
+10) Restart kubelet
+systemctl restart kubelet
+
+11) uncordon node
+k uncordon <node_name>

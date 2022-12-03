@@ -1,9 +1,9 @@
 [control]
-control.keights.org ansible_host=192.168.122.4
+control.keights.org ansible_host=192.168.0.200
 
 [workers]
-worker0.keights.org ansible_host=192.168.122.2
-worker1.keights.org ansible_host=192.168.122.3
+worker0.keights.org ansible_host=192.168.0.201
+worker1.keights.org ansible_host=192.168.0.202
 
 [cluster:children]
 control
