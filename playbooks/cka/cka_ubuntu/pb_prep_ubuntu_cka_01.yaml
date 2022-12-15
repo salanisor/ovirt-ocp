@@ -46,6 +46,20 @@
         dest: "/etc/apt/sources.list.d/crio.list"
     tags:
     - runt
+  - name: "Install libcontainers GPG keys"
+    #ansible.builtin.get_url:
+    get_url:
+      url: "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/Release.key"
+      dest: /tmp/libcontainers.key
+    tags:
+    - runt
+  - name: Add Apt signing key on remote server to keyring
+    #ansible.builtin.apt_key:
+    apt_key:
+      file: /tmp/libcontainers.key
+      state: present
+    tags:
+    - runt
   - apt:
       update_cache: yes
     tags:

@@ -10,7 +10,7 @@
       pkg:
       #- systemd-resolved
       - libnss-resolve
-      - nplan
+      #- nplan
       - netplan.io
       state: latest
 #  - name: "set correct dns"
@@ -41,9 +41,9 @@
     blockinfile:
       dest: /etc/hosts
       block: |
-        192.168.0.200 control.keights.org control
-        192.168.0.201 worker0.keights.org worker0
-        192.168.0.202 worker1.keights.org worker1
+        192.168.122.2 control.keights.org control
+        192.168.122.3 worker0.keights.org worker0
+        192.168.122.4 worker1.keights.org worker1
       backup: yes
     tags:
     - net
